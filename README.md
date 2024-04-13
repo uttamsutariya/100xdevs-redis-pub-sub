@@ -1,81 +1,20 @@
-# Turborepo starter
+# Scaling websocket servers
 
-This is an official starter Turborepo.
+Have you ever imagined how a large realtime websocker servers can be scaled ? Let's try to understand it by different scenarios.
 
-## Using this example
+## 1. Single WebSocket server
 
-Run the following command:
+![single websocket server](./images/single.png)
 
-```sh
-npx create-turbo@latest
-```
+In this scenario you have limited number of users, which a single websocket server can easily handle without latency issues. But what if you got `1 million` users to your application & now you can't handle those with a single websocket server? You probable imagine that you can horizontally scale websocket servers. Let's try this.
 
-## What's inside?
+## 2. Horizontal Scaling Of WebSocket Server
 
-This Turborepo includes the following packages/apps:
+![multiple websocket server](./images/multiple.png)
+Now you have 2 instances of websocket server. Both are handling some amount of users. But in this scenario, `ws server 1` & `ws server 2` are not connected to each other via a ws protocol. Now the problem arises that how can a user connected from `ws server 1` communicate with a user connected to `ws server 2`. In this scenario there isn't was using a `u1` can communicate to `u2`.
 
-### Apps and Packages
+## 3. Introducing Pub Sub (with REDIS)
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
-pnpm build
-```
-
-### Develop
-
-To develop all apps and packages, run the following command:
-
-```
-cd my-turborepo
-pnpm dev
-```
-
-### Remote Caching
-
-Turborepo can use a technique known as [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup), then enter the following commands:
-
-```
-cd my-turborepo
-npx turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-npx turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turbo.build/repo/docs/core-concepts/monorepos/running-tasks)
-- [Caching](https://turbo.build/repo/docs/core-concepts/caching)
-- [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching)
-- [Filtering](https://turbo.build/repo/docs/core-concepts/monorepos/filtering)
-- [Configuration Options](https://turbo.build/repo/docs/reference/configuration)
-- [CLI Usage](https://turbo.build/repo/docs/reference/command-line-reference)
+![multiple websocket server](./images/pubsub.png)
+REDIS's `pubsub` mechanism is one of the solution of the above problem.
+Let's say in this scenario any user can type a message & it needs to be broadcasted to every user available on the platform. To do this connect `ws server 1` & `ws server 2` with the redis. When a user submits a message to its connected ws server, then that ws server publishes that message to a channel called `MESSAGE_CHANNEL` using redis. Also each ws server have subscribed to the same channed in order to receive the message from that channel. So when a message is published to the channel, all the ws servers subscribed to the channel `MESSAGE_CHANNEL` receive the message. Using this approach the message send by a user `u1` can be easily received by the users connected to the different ws server that `u1`, means `u4` and `u5` also received the broadcasted message from `u1`.
